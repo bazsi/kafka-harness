@@ -1,0 +1,33 @@
+@version: current
+
+# kafka() source e2e configuration, instantiated by e2e.sh.
+# Placeholders: @TOPIC_CLAUSE@ @BOOTSTRAP@ @STRATEGY@ @PERSIST_STORE@ @OUTPUT@ @EXTRA@
+
+source s_kafka {
+  kafka(
+    bootstrap-servers("@BOOTSTRAP@")
+    @TOPIC_CLAUSE@
+    strategy-hint("@STRATEGY@")
+    persist-store("@PERSIST_STORE@")
+    store-metadata(yes)
+    # the payload is taken verbatim, no syslog parsing
+    flags(no-parse)
+    # reconnect quickly in the harness; the other timeouts stay at their
+    # defaults (poll-timeout() and state-update-timeout() are milliseconds, a
+    # too short state-update-timeout() makes every seek time out and the
+    # driver revoke and re-assign its partitions forever)
+    time-reopen(1)
+    @EXTRA@
+  );
+};
+
+destination d_out {
+  file("@OUTPUT@"
+       template("${.kafka.topic}\t${.kafka.partition}\t${.kafka.offset}\t${.kafka.key}\t${MESSAGE}\n")
+       flush-lines(1));
+};
+
+log {
+  source(s_kafka);
+  destination(d_out);
+};
